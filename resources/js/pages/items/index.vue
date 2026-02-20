@@ -39,7 +39,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const form = useForm({
     name: '',
-    type: '',
+    type: 'equipment',
     description: '',
 });
 
@@ -135,7 +135,7 @@ const executeDelete = () => {
                                 </div>
 
                                 <div class="space-y-2">
-                                    <Label>Jenis Barang <span class="text-destructive">*</span></Label>
+                                    <Label>Jenis Barang</Label>
                                     <Select v-model="form.type">
                                         <SelectTrigger class="w-full" :class="{ 'border-destructive focus:ring-destructive': form.errors.type }">
                                             <SelectValue placeholder="Pilih Jenis Barang..." />
