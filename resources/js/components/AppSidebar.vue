@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, BoxesIcon, Database, Folder, LayoutGrid, ShoppingCart } from 'lucide-vue-next';
+import { BookOpen, BoxesIcon, ClipboardList, Database, Folder, LayoutGrid, ShoppingCart } from 'lucide-vue-next';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -14,7 +14,6 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import items from '@/routes/items';
 import { type NavItem } from '@/types';
 import AppLogo from './AppLogo.vue';
 
@@ -33,6 +32,12 @@ const mainNavItems: NavItem[] = [
         title: 'Cart',
         href: '/cart-items',
         icon: ShoppingCart,
+    },
+    {
+        // Menu Baru untuk Purchase Requisition
+        title: 'Purchase Requisitions',
+        href: '/purchase-requisitions',
+        icon: ClipboardList,
     },
 ];
 

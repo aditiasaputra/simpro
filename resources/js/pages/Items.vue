@@ -37,7 +37,7 @@ defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Items', href: '/items' },
+    { title: 'List Item', href: '/items' },
 ];
 
 // ==========================================
@@ -236,7 +236,7 @@ const submitCart = () => {
 </script>
 
 <template>
-    <Head title="Items" />
+    <Head title="List Item" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div v-if="form.processing || isLoadingMore || cartForm.processing" class="fixed top-0 left-0 w-full h-1 bg-primary/20 z-50">

@@ -67,4 +67,36 @@ class CartItemController extends Controller
 
         return redirect()->back();
     }
+
+    public function checkout(Request $request)
+    {
+        $request->validate([
+            'cart_item_ids' => 'required|array|min:1',
+            'cart_item_ids.*' => 'exists:cart_items,id'
+        ]);
+
+        // Simpan ID keranjang yang dicentang ke session, lalu arahkan ke form Buat MPR
+        return redirect()->route('purchase-requisitions.create')
+            ->with('checkout_cart_ids', $request->cart_item_ids);
+    }
+
+    public function bulkStore(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array',
+            'items.*.id' => 'required|exists:items,id',
+            'items.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        foreach ($request->items as $item) {
+            $cartItem = CartItem::firstOrNew([
+                'user_id' => Auth::id(),
+                'item_id' => $item['id'],
+            ]);
+            $cartItem->quantity = ($cartItem->quantity ?? 0) + $item['quantity'];
+            $cartItem->save();
+        }
+
+        return redirect()->back()->with('success', 'Barang berhasil ditambahkan ke keranjang!');
+    }
 }
