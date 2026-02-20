@@ -25,15 +25,9 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Master Data',
-        icon: Database,
-        items: [
-            {
-                title: 'List Item',
-                href: items.index(),
-                icon: BoxesIcon,
-            },
-        ],
+        title: 'List Item',
+        href: items.index(),
+        icon: BoxesIcon,
     },
 ];
 
