@@ -9,7 +9,7 @@ Sistem ini sangat ideal digunakan sebagai kerangka dasar untuk pengembangan modu
 * **Single Page Application (SPA):** Transisi halaman yang sangat cepat tanpa *reload* berkat Inertia.js.
 * **Manajemen Item (CRUD):** Tambah, lihat, dan hapus data barang (Equipment & Consumable).
 * **Modern UI Components:** Menggunakan `shadcn-vue` untuk tabel, form, alert dialog, dan badge yang interaktif.
-* **Nested Sidebar Navigation:** Struktur navigasi yang rapi (Master Data > List Item).
+* **Nested Sidebar Navigation:** Struktur navigasi yang rapi (Master Data > Items).
 * **Real-time Feedback:** Toast notifications dan indikator *loading* saat proses penyimpanan data.
 * **Keamanan:** Proteksi CSRF otomatis dan form validation dari sisi backend (Laravel).
 

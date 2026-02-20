@@ -1,20 +1,26 @@
 <script setup lang="ts">
-import { Head, useForm, router } from '@inertiajs/vue3';
-import { Loader2, Search, Edit2, X } from 'lucide-vue-next'; // Tambah icon baru
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
+import { Loader2, Search, Edit2, X, ShoppingCart } from 'lucide-vue-next';
 import { ref, onMounted, nextTick, watch } from 'vue';
+
+// UI Components
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
-
+// ==========================================
+// INTERFACE & PROPS
+// ==========================================
 interface Item {
     id: number;
     name: string;
@@ -22,7 +28,6 @@ interface Item {
     description: string;
 }
 
-// 1. UPDATE TIPE PROPS: Karena sekarang kita pakai paginate() dari Laravel
 defineProps<{
     items: {
         data: Item[];
@@ -31,98 +36,52 @@ defineProps<{
     filters: { search?: string }
 }>();
 
-// STATE LOKAL & PENCARIAN
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Items', href: '/items' },
+];
+
+// ==========================================
+// STATE MANAGEMENT
+// ==========================================
+// State Tabel & Pencarian
 const localItems = ref<Item[]>([]);
 const searchQuery = ref('');
 const isLoadingMore = ref(false);
-const observerTarget = ref<HTMLElement | null>(null); // Target deteksi scroll
+const observerTarget = ref<HTMLElement | null>(null);
 
-// STATE UNTUK EDIT
+// State Form Item (Create/Update)
 const isEditing = ref(false);
 const editingId = ref<number | null>(null);
-
-const showToast = ref(false);
-const toastMessage = ref('');
-const toastVariant = ref<'default' | 'destructive'>('default');
-
-const isDeleteDialogOpen = ref(false);
-const itemToDelete = ref<number | null>(null);
-
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'List Item', href: '/items' },
-];
-
 const form = useForm({
     name: '',
     type: 'equipment',
     description: '',
 });
 
+// State Toast Notifikasi
+const showToast = ref(false);
+const toastMessage = ref('');
+const toastVariant = ref<'default' | 'destructive'>('default');
+
+// State Modal Delete
+const isDeleteDialogOpen = ref(false);
+const itemToDelete = ref<number | null>(null);
+
+// State Modal Keranjang (Cart)
+const isCartDialogOpen = ref(false);
+const selectedItemForCart = ref<Item | null>(null);
+const cartForm = useForm({
+    item_id: null as number | null,
+    quantity: 1,
+});
+
+// ==========================================
+// CORE FUNCTIONS
+// ==========================================
 const focusNameInput = async () => {
     await nextTick();
     document.getElementById('item-name')?.focus();
 };
-
-// ==========================================
-// LOGIKA PENCARIAN (DEBOUNCE)
-// ==========================================
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-
-watch(searchQuery, (value) => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-
-    // Tunggu user selesai mengetik selama 300ms sebelum nembak ke server
-    searchTimeout = setTimeout(() => {
-        router.get('/items', { search: value }, {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            only: ['items'],
-            onSuccess: (page) => {
-                // Timpa data lama dengan hasil pencarian baru
-                localItems.value = page.props.items.data;
-            }
-        });
-    }, 300);
-});
-
-// ==========================================
-// LOGIKA INFINITE SCROLL
-// ==========================================
-const loadMore = (nextUrl: string | null) => {
-    if (!nextUrl || isLoadingMore.value) return;
-    isLoadingMore.value = true;
-
-    router.get(nextUrl, { search: searchQuery.value }, {
-        preserveState: true,
-        preserveScroll: true,
-        only: ['items'],
-        onSuccess: (page) => {
-            // Gabungkan/Append data halaman berikutnya ke array lokal
-            localItems.value.push(...page.props.items.data);
-            isLoadingMore.value = false;
-        }
-    });
-};
-
-onMounted(() => {
-    focusNameInput();
-
-    // Inisialisasi data lokal pertama kali
-    localItems.value = usePage().props.items.data;
-
-    // Deteksi elemen bawah tabel untuk Infinite Scroll
-    const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && !isLoadingMore.value) {
-            const nextUrl = usePage().props.items.next_page_url;
-            loadMore(nextUrl);
-        }
-    }, { rootMargin: '100px' }); // Trigger sedikit sebelum benar-benar mentok bawah
-
-    if (observerTarget.value) {
-        observer.observe(observerTarget.value);
-    }
-});
 
 const triggerToast = (message: string, variant: 'default' | 'destructive' = 'default') => {
     toastMessage.value = message;
@@ -131,16 +90,60 @@ const triggerToast = (message: string, variant: 'default' | 'destructive' = 'def
     setTimeout(() => (showToast.value = false), 3500);
 };
 
-// ==========================================
-// LOGIKA SUBMIT (CREATE & UPDATE)
-// ==========================================
-const submit = () => {
+// 1. Pencarian (Debounce)
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+watch(searchQuery, (value) => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.get('/items', { search: value }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            only: ['items'],
+            onSuccess: (page) => {
+                localItems.value = page.props.items.data;
+            }
+        });
+    }, 300);
+});
+
+// 2. Infinite Scroll
+const loadMore = (nextUrl: string | null) => {
+    if (!nextUrl || isLoadingMore.value) return;
+    isLoadingMore.value = true;
+    router.get(nextUrl, { search: searchQuery.value }, {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['items'],
+        onSuccess: (page) => {
+            localItems.value.push(...page.props.items.data);
+            isLoadingMore.value = false;
+        }
+    });
+};
+
+onMounted(() => {
+    focusNameInput();
+    localItems.value = usePage().props.items.data;
+
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !isLoadingMore.value) {
+            const nextUrl = usePage().props.items.next_page_url;
+            loadMore(nextUrl);
+        }
+    }, { rootMargin: '100px' });
+
+    if (observerTarget.value) {
+        observer.observe(observerTarget.value);
+    }
+});
+
+// 3. Submit Form Item (Create & Update)
+const submitItem = () => {
     if (isEditing.value && editingId.value) {
-        // PROSES UPDATE
         form.put(`/items/${editingId.value}`, {
             preserveScroll: true,
             onSuccess: () => {
-                // Update array lokal agar tidak perlu refresh halaman
                 const index = localItems.value.findIndex(i => i.id === editingId.value);
                 if(index !== -1) {
                     localItems.value[index] = { ...localItems.value[index], name: form.name, type: form.type, description: form.description };
@@ -151,11 +154,9 @@ const submit = () => {
             onError: handleFormErrors
         });
     } else {
-        // PROSES CREATE
         form.post('/items', {
             preserveScroll: true,
             onSuccess: () => {
-                // Karena sulit memprediksi urutan di infinite scroll, cara teraman adalah me-reload parsial tabelnya
                 router.reload({ only: ['items'], onSuccess: (page) => localItems.value = page.props.items.data });
                 form.reset();
                 triggerToast('Data berhasil disimpan! 🎉', 'default');
@@ -175,9 +176,6 @@ const handleFormErrors = (errors: any) => {
     focusNameInput();
 };
 
-// ==========================================
-// LOGIKA EDIT & DELETE
-// ==========================================
 const editItem = (item: Item) => {
     isEditing.value = true;
     editingId.value = item.id;
@@ -195,6 +193,7 @@ const cancelEdit = () => {
     focusNameInput();
 };
 
+// 4. Delete Item
 const confirmDelete = (id: number) => {
     itemToDelete.value = id;
     isDeleteDialogOpen.value = true;
@@ -205,7 +204,6 @@ const executeDelete = () => {
         form.delete(`/items/${itemToDelete.value}`, {
             preserveScroll: true,
             onSuccess: () => {
-                // Hapus langsung dari array lokal
                 localItems.value = localItems.value.filter(i => i.id !== itemToDelete.value);
                 triggerToast('Data berhasil dihapus!', 'default');
                 isDeleteDialogOpen.value = false;
@@ -215,15 +213,33 @@ const executeDelete = () => {
     }
 };
 
-// HELPER FUNCTION: Mengambil props halaman dengan type safe
-import { usePage } from '@inertiajs/vue3';
+// 5. Tambah ke Keranjang
+const openCartDialog = (item: Item) => {
+    selectedItemForCart.value = item;
+    cartForm.item_id = item.id;
+    cartForm.quantity = 1;
+    isCartDialogOpen.value = true;
+};
+
+const submitCart = () => {
+    cartForm.post('/cart-items', {
+        preserveScroll: true,
+        onSuccess: () => {
+            isCartDialogOpen.value = false;
+            triggerToast('Item berhasil ditambahkan ke keranjang! 🛒', 'default');
+        },
+        onError: () => {
+            triggerToast('Gagal menambahkan ke keranjang.', 'destructive');
+        }
+    });
+};
 </script>
 
 <template>
-    <Head title="List Item" />
+    <Head title="Items" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div v-if="form.processing || isLoadingMore" class="fixed top-0 left-0 w-full h-1 bg-primary/20 z-50">
+        <div v-if="form.processing || isLoadingMore || cartForm.processing" class="fixed top-0 left-0 w-full h-1 bg-primary/20 z-50">
             <div class="h-full bg-primary animate-pulse w-full origin-left transition-all"></div>
         </div>
 
@@ -249,7 +265,7 @@ import { usePage } from '@inertiajs/vue3';
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <form @submit.prevent="submit" class="space-y-4">
+                            <form @submit.prevent="submitItem" class="space-y-4">
                                 <div class="space-y-2">
                                     <Label for="item-name">Nama Item <span class="text-destructive">*</span></Label>
                                     <Input
@@ -337,7 +353,7 @@ import { usePage } from '@inertiajs/vue3';
                                         <TableHead>Nama</TableHead>
                                         <TableHead>Jenis</TableHead>
                                         <TableHead>Deskripsi</TableHead>
-                                        <TableHead class="text-center w-28">Aksi</TableHead>
+                                        <TableHead class="text-center w-36">Aksi</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -353,6 +369,9 @@ import { usePage } from '@inertiajs/vue3';
                                             {{ item.description || '-' }}
                                         </TableCell>
                                         <TableCell class="text-center space-x-1">
+                                            <Button variant="ghost" size="icon" class="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20" @click="openCartDialog(item)" title="Tambah ke Keranjang">
+                                                <ShoppingCart class="w-4 h-4" />
+                                            </Button>
                                             <Button variant="ghost" size="icon" class="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20" @click="editItem(item)" title="Edit">
                                                 <Edit2 class="w-4 h-4" />
                                             </Button>
@@ -396,5 +415,41 @@ import { usePage } from '@inertiajs/vue3';
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog :open="isCartDialogOpen" @update:open="isCartDialogOpen = $event">
+            <DialogContent class="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Masukkan ke Keranjang</DialogTitle>
+                    <DialogDescription>
+                        Berapa banyak <strong>{{ selectedItemForCart?.name }}</strong> yang ingin Anda tambahkan?
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form @submit.prevent="submitCart" class="space-y-4 mt-2">
+                    <div class="space-y-2">
+                        <Label for="cart-qty">Jumlah (Quantity)</Label>
+                        <Input
+                            id="cart-qty"
+                            type="number"
+                            min="1"
+                            v-model="cartForm.quantity"
+                            required
+                            class="text-lg"
+                        />
+                    </div>
+
+                    <DialogFooter class="mt-6">
+                        <Button type="button" variant="outline" @click="isCartDialogOpen = false">
+                            Batal
+                        </Button>
+                        <Button type="submit" :disabled="cartForm.processing">
+                            <Loader2 v-if="cartForm.processing" class="w-4 h-4 mr-2 animate-spin" />
+                            Simpan ke Keranjang
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
     </AppLayout>
 </template>

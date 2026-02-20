@@ -22,7 +22,7 @@ class ItemController extends Controller
         // Infinite Scroll membutuhkan Pagination (misal 10 data per load)
         $items = $query->latest()->paginate(10)->withQueryString();
 
-        return Inertia::render('items/index', [
+        return Inertia::render('Items', [
             'items' => $items,
             'filters' => $request->only(['search']) // Kirim balik keyword pencarian
         ]);
